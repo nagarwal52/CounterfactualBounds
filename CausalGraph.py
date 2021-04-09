@@ -225,6 +225,4 @@ class CausalGraph:
     Q = New.reshape(np.prod(self.states),np.prod(self.RF_formulation()[0]))
     return Q 
       
-    return dot
-  
 
