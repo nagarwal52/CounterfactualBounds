@@ -18,7 +18,7 @@ from operator import mul
 
 np.random.seed(2021)
 
-class CausalGraph():
+class CausalGraph:
   def __init__(self, data, edges, latent_edges):
     
     """
@@ -101,3 +101,59 @@ class CausalGraph():
     prob_value_dict = dict(zip(joint_event,p_vec))
 
     return p_vec, prob_value_dict, joint_event
+
+  def classifier(self):
+    return np.random.uniform(0,1, tuple(self.states)).flatten()
+
+  def response_function_reformulation(self):
+    self.dag.remove_edges_from(self.boundary_edges)
+    self.dag.remove_nodes_from(self.latent_nodes)
+    # Check for cylclicity
+    assert nx.is_directed_acyclic_graph(self.dag) == True
+    states = self.states
+    response_functions = []
+    response_functions_combinations = []
+    for node in self.nodes:
+      if nx.ancestors(self.dag,node) == set():
+        response_functions.append(self.nodes_dict.get(node))
+        response_functions_combinations.append(tuple(self.domain_dict.get(node)))
+      else:
+        response_functions.append(self.nodes_dict.get(node)**np.prod([self.nodes_dict[nodes] for nodes in sorted(list(self.dag.predecessors(node)))]))
+        response_functions_combinations.append(list(product(range(self.nodes_dict.get(node)), repeat =np.prod([self.nodes_dict[nodes] for nodes in sorted(list(self.dag.predecessors(node)))]))))
+    rf_names = ['R_{}'.format(i) for i in self.observed_index] 
+    rf_dict = dict(zip(self.nodes, response_functions_combinations))
+    numRF_dict = dict(zip(self.nodes,response_functions))
+    return response_functions, numRF_dict, rf_dict
+
+  def draw_RFgraph(self):
+    self.rf_nodes = ['R_{}'.format(i) for i in self.observed_index] 
+    self.rf_nodes_dict = dict(zip(self.rf_nodes,self.latent_index))
+    self.rf_conf_edges = [('R_1','R_3'),('R_2','R_3')]
+    """
+    self.rf_conf_edges = []
+    for (a,b) in self.latent_edges:
+      (x,y) = (self.observed_dict[a], self.observed_dict[b])
+      self.rf_conf_edges.append([list(self.rf_nodes_dict.keys())[list(self.rf_nodes_dict.values()).index(x)],
+      list(self.rf_nodes_dict.keys())[list(self.rf_nodes_dict.values()).index(y)]])
+    self.rf_conf_edges = [tuple(l) for l in self.rf_conf_edges]
+    """
+    self.rf_edges = [(self.rf_nodes[i], self.nodes[i]) for i in range(len(self.nodes))]
+    self.rf_nodes_dict = dict(zip(self.rf_nodes, self.nodes))
+    dot = graphviz.Digraph()
+    for node in self.nodes:
+      dot.node(node, node, {"shape": "ellipse"})
+
+    for a, b in self.edges:
+      if a in self.nodes and b in self.nodes:
+        dot.edge(a,b)
+        
+    for name in self.rf_nodes:
+      dot.node(name, name, {"shape":"rectangle", "color":"grey"})
+      
+    for (a,b) in self.rf_edges:
+      dot.edge(a,b)
+      
+    for (a,b) in self.rf_conf_edges:
+      dot.edge(a,b)
+      
+    return dot
