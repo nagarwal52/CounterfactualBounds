@@ -105,7 +105,7 @@ class CausalGraph:
   def classifier(self):
     return np.random.uniform(0,1, tuple(self.states)).flatten()
 
-  def response_function_reformulation(self):
+  def RF_formulation(self):
     self.dag.remove_edges_from(self.boundary_edges)
     self.dag.remove_nodes_from(self.latent_nodes)
     # Check for cylclicity
@@ -157,3 +157,74 @@ class CausalGraph:
       dot.edge(a,b)
       
     return dot
+   
+  def Indicator(self,node, par, R, observation):
+    self.dag.remove_edges_from(self.boundary_edges)
+    self.dag.remove_nodes_from(self.latent_nodes)
+    states = self.nodes_dict.get(node)
+    if nx.ancestors(self.dag,node)==set():
+      Resp = self.RF_formulation()[1].get(node)
+      lst = [self.domain_dict.get(node)]
+      names = list(product(range(0,self.nodes_dict[node]),repeat=0))
+      final = dict(zip(names,lst))
+    else:
+      parents= sorted(list(self.dag.predecessors(node)))
+      index = np.prod([self.nodes_dict[nodes] for nodes in sorted(list(self.dag.predecessors(node)))])
+      Resp = self.RF_formulation()[1].get(node)
+      lst = [self.RF_formulation()[2].get(node)[response][i] for i in range(0,index) for response in range(0,Resp)]
+      A = [lst[i:i + Resp] for i in range(0, len(lst), Resp)]
+      names = list(product(*[range(self.nodes_dict[node]) for node in parents]))
+      final = dict(zip(names,A))
+    return 1 if observation == final.get(par)[R] else 0
+
+  def par_value_by_node(self,node):
+    self.dag.remove_edges_from(self.boundary_edges)
+    self.dag.remove_nodes_from(self.latent_nodes)
+    states = self.nodes_dict.get(node)
+    if nx.ancestors(self.dag,node)==set():
+      Resp = self.RF_formulation()[1].get(node)
+      lst = [self.domain_dict.get(node)]
+      names = list(product(range(0,self.nodes_dict[node]),repeat=0))
+      final = dict(zip(names,lst))
+    else:
+      parents= sorted(list(self.dag.predecessors(node)))
+      index = np.prod([self.nodes_dict[nodes] for nodes in sorted(list(self.dag.predecessors(node)))])
+      Resp = self.RF_formulation()[1].get(node)
+      lst = [self.RF_formulation()[2].get(node)[response][i] for i in range(0,index) for response in range(0,Resp)]
+      A = [lst[i:i + Resp] for i in range(0, len(lst), Resp)]
+      names = list(product(*[range(self.nodes_dict[node]) for node in parents]))
+      final = dict(zip(names,A))
+    return final.keys()
+
+  def Q_matrix(self):
+    self.dag.remove_edges_from(self.boundary_edges)
+    self.dag.remove_nodes_from(self.latent_nodes)
+    # Finding all the combinations of r, observation, par_value
+    r = list(product(*[range(self.RF_formulation()[1].get(node)) for node in self.nodes]))*np.prod(self.states)
+    joint_event = self.distribution()[2]
+    observation = []
+    for i in range(0, len(joint_event)):
+      observation = observation + [joint_event[i]]*np.prod(self.RF_formulation()[0])
+      
+    par_tmp = []
+    for j,node in enumerate(self.nodes):
+      tmp_lst = list((self.par_value_by_node(node)))
+      par_tmp = par_tmp + [sorted(tmp_lst*(int(len(observation)/len(tmp_lst))))]
+    par = list(zip(*par_tmp))
+    lst = [[] for _ in range(np.prod(self.states)*np.prod(self.RF_formulation()[0]))]
+    for i in range(0,len(lst)):
+      for j, node in enumerate(self.nodes):
+        tmp = (node,par[i][j]) + (r[i][j],) + (observation[i][j],)
+        lst[i].append(tmp)
+        
+    Q_tmp = np.zeros((np.prod(self.states)*np.prod(self.RF_formulation()[0]),len(self.nodes)),dtype=int)
+    for i in range(0,(np.prod(self.states)*np.prod(self.RF_formulation()[0]))):
+      for j,(a,b,c,d) in enumerate(lst[i]):
+        Q_tmp[i,j] = self.Indicator(a,b,c,d)
+    New = np.prod(Q_tmp, axis = 1)
+    Q = New.reshape(np.prod(self.states),np.prod(self.RF_formulation()[0]))
+    return Q 
+      
+    return dot
+  
+
