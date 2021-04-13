@@ -40,7 +40,7 @@ class CounterfactualBounds:
     # Extracting information
     self.dag = nx.DiGraph()
     self.nodes = list(self.data.keys())
-    type_of_actions = ['non-actionable', 'actionable', 'actionable']
+    type_of_actions = ['non-actionable', 'actionable', 'actionable'] # To be added for all nodes
     A = dict(zip(self.nodes, type_of_actions))
     #attrs = {'X_1': {"attr1": 20}, 'X_2': {"attr2": 3}, 'X_3': {'attr3':7}}
     nx.set_node_attributes(self.dag, A , name='types')
@@ -83,7 +83,7 @@ class CounterfactualBounds:
     #texcode = dot2tex.dot2tex(b.to_string(), format='tikz', crop=True)
     # Draw 
   def classifier(self):
-    np.random.seed(SEED_VALUE )
+    np.random.seed(SEED_VALUE)
     return np.random.random(self.states)
     
   def draw(self):
@@ -125,6 +125,7 @@ class CounterfactualBounds:
     
     # Probability distribution
   def distribution(self):
+    'Evaluates probability distribution for n nodes/features. Domain of all nodes can be same or different.'
     jointProbs, _ = np.histogramdd(self.data_nd.T, bins=tuple(self.states))
     jointProbs /= jointProbs.sum()
     p_vec = jointProbs.flatten()
@@ -135,6 +136,7 @@ class CounterfactualBounds:
     return p_vec, prob_value_dict, joint_event
 
   def RF_formulation(self):
+    'Paramaterize the SCM. as described in ....'
     self.dag.remove_edges_from(self.boundary_edges)
     self.dag.remove_nodes_from(self.latent_nodes)
 
