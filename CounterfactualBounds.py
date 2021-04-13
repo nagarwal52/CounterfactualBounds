@@ -125,7 +125,10 @@ class CounterfactualBounds:
     
     # Probability distribution
   def distribution(self):
-    'Evaluates probability distribution for n nodes/features. Domain of all nodes can be same or different.'
+    '''
+    Evaluates probability distribution for n nodes/features. Domain of all nodes can be same or different.
+    
+    '''
     jointProbs, _ = np.histogramdd(self.data_nd.T, bins=tuple(self.states))
     jointProbs /= jointProbs.sum()
     p_vec = jointProbs.flatten()
@@ -136,7 +139,9 @@ class CounterfactualBounds:
     return p_vec, prob_value_dict, joint_event
 
   def RF_formulation(self):
-    'Paramaterize the SCM. as described in ....'
+    '''
+    Paramaterize the SCM. as described in ....'
+    '''
     self.dag.remove_edges_from(self.boundary_edges)
     self.dag.remove_nodes_from(self.latent_nodes)
 
@@ -210,6 +215,7 @@ class CounterfactualBounds:
       dot.edge(a, b)
     return dot
   
+  # TO-DO: COMBINE NEXT TWO FUNCTIONS
   def Indicator(self, node, par, R, observation):
     self.dag.remove_edges_from(self.boundary_edges)
     self.dag.remove_nodes_from(self.latent_nodes)
@@ -250,6 +256,9 @@ class CounterfactualBounds:
     return final.keys()
 
   def Q_matrix(self):
+    '''
+    
+    '''
     # Removing latent edges
     self.dag.remove_edges_from(self.boundary_edges)
     self.dag.remove_nodes_from(self.latent_nodes)
