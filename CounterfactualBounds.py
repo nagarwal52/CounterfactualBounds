@@ -239,10 +239,10 @@ class CounterfactualBounds:
   def par_value_by_node(self,node):
     self.dag.remove_edges_from(self.boundary_edges)
     self.dag.remove_nodes_from(self.latent_nodes)
-    states = self.nodes_dict.get(node)
+    states  =  self.nodes_dict.get(node)
     if nx.ancestors(self.dag,node)==set():
-      Resp = self.RF_formulation()[1].get(node)
-      lst = [self.domain_dict.get(node)]
+      Resp  = self.RF_formulation()[1].get(node)
+      lst   = [self.domain_dict.get(node)]
       names = list(product(range(0,self.nodes_dict[node]),repeat=0))
       final = dict(zip(names,lst))
     else:
@@ -257,7 +257,8 @@ class CounterfactualBounds:
 
   def Q_matrix(self):
     '''
-    
+    determine a linear/non-linear system of equations relating observed variable (p) and unobserved variable (q)
+    REMARK : Linear system is obtained in the presence of full confounding and non-linear system is obtained in the presence of partial confounding. 
     '''
     # Removing latent edges
     self.dag.remove_edges_from(self.boundary_edges)
@@ -297,7 +298,7 @@ class CounterfactualBounds:
   def bounds(self, confounding_type):
     t = PrettyTable(['Intervened node','Factual observation (xF)','Lower Bound', 'Upper Bound', 'Decision'])
     #classifier = (example.states).flatten()
-    joint_event = self.distribution()[2] # Remove this later
+    joint_event = self.distribution()[2] 
     h = self.classifier().flatten()
     h_dict = dict(zip(joint_event, h))
     xF = [i for i in joint_event if h_dict[i]<0.5]
