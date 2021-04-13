@@ -413,5 +413,124 @@ class CounterfactualBounds:
 
     print(t)
     print('NOTE: If a different classifier is used, bounds (and therefore decision) may change.\n To change the output of classifier used here (as an example), change the "SEED_VALUE".')
-      
+   
+  # Doesn't work for odd number of nodes
+  def partial_confounding():
+        # Define bilinear model
+    model = gp.Model('bilinear')
+    # Add latent nodes and edges
+    example.dag.add_nodes_from(example.rf_nodes)
+    example.dag.add_edges_from(example.rf_conf_edges)
+    example.dag.add_edges_from(example.rf_edges)
+    successors = []
+    s = []
+    NUM_variable = []
+    simplex = []
+    simplex_cond = []
+    for i, node in enumerate(example.rf_nodes):
+      succ = list(example.dag.successors(node))
+      succ.remove(example.rf_nodes_dict[node])
+      NUM  = int(numRF_dict[example.rf_nodes_dict[node]]*np.prod([numRF_dict[example.rf_nodes_dict[nodes]] 
+                                                    for nodes in list(example.dag.predecessors(node))]))
+      NUM_variable.append(NUM)
+      s.append(model.addVars(NUM, lb=0, ub=1).select()); model.update()
+      N_dict = dict(zip(example.rf_nodes,NUM_variable))
+      S_dict = dict(zip(example.rf_nodes,s))
+      successors.append(succ)
+      if list(example.dag.predecessors(node)) == []:
+        simplex.append(model.addConstr(np.sum(S_dict[node])==1,'prob_constr_{}'.format(i+1))) ; model.update()
+      else:
+        tmp = [S_dict[node][k:k+numRF_dict[example.rf_nodes_dict[node]]] for k in range(0, len(S_dict[node]),numRF_dict[example.rf_nodes_dict[node]])]
+        for i in range(len(tmp)):
+          simplex_cond.append(model.addConstr(np.sum(tmp[i])==1,'prob_constr_'+str(example.observed_dict[example.rf_nodes_dict[node]])+str(i))) ; model.update()
+    Successors_dict = dict(zip(example.rf_nodes, successors))   
+
+    def reduce(A,var,j):
+        if len(A) == 2:
+            var['a'+ str(j)] = [A[0],A[1]]
+            return var
+
+        n = len(A)
+        if n % 2 != 0:
+            last = n-1 
+        else:
+            last = n
+        temp = []
+        for i in range(0,last,2):
+            var['a'+ str(j)] = [A[i],A[i+1]]
+            temp.append('a'+ str(j))
+
+            j += 1
+        if last < n:
+            temp.append((A[last]))
+
+        return reduce(temp,var,j), var
+
+    _,b = reduce(example.rf_nodes,{},0)
+    var = list(b.keys())
+    pairs = list(b.values())
+    u_1 = []
+    var_1 = []
+    u_2 = []
+    var_2 = []
+    c = []
+    for i in range(int(len(example.rf_nodes)/2)):
+      if Successors_dict[pairs[i][0]] == []:
+        tmp = model.addVars(N_dict[b[var[i]][0]] * N_dict[b[var[i]][1]], lb=0, ub=1).select()
+        u_1.append(tmp); model.update()
+        var_1.append(len(tmp))
+        tmp_c = model.addConstrs(u_1[i][j]==[(x*y) for x,y in list(product(S_dict[pairs[i][0]], S_dict[pairs[i][1]]))][j] 
+                               for j in range(len(S_dict[pairs[i][0]])*len(S_dict[pairs[i][1]]))) ; model.update()
+        c.append(tmp_c)
+      else:
+        tmp = model.addVars(N_dict[b[var[i]][1]], lb=0, ub=1).select()
+        u_1.append(tmp); model.update()
+        var_1.append(len(tmp))
+        tmp_c = [S_dict[pairs[i][0]][b]*S_dict[pairs[i][1]][a] 
+                      for a,b in enumerate(list(itertools.chain.from_iterable(itertools.repeat(x, numRF_dict[example.rf_nodes_dict[pairs[i][1]]]) 
+                      for x in list(range(N_dict[pairs[i][0]])))))]; model.update()
+        c.append(tmp_c)
+
+    dict_var_1 = dict(zip(var[0:int(len(example.rf_nodes)/2)],var_1))
+    dict_var = dict(zip(var[0:int(len(example.rf_nodes)/2)],u_1))
+
+    TOTAL_RFs = np.prod(response_functions)
+    TOTAL_RFs = np.prod(response_functions)
+    qs= []
+    if len(example.rf_nodes) % 2 == 0:
+      end = len(b)
+      for i in var[int(len(example.rf_nodes)/2):end-1]:
+        tmp = model.addVars(dict_var_1[b[i][0]]*dict_var_1[b[i][1]],lb=10e-10,ub=1).select();model.update
+        u_2.append(tmp)
+        var_2.append(len(tmp))
+    else:
+      for i in var[int(len(example.rf_nodes)/2):]:
+        if list(example.dag.predecessors(b[i][1])) == []:
+          tmp = [np.prod(list(product(u_1[0],s[2]))[i]) for i in range(128)]
+          qs.append(tmp)
+        else:
+          l1 = list(itertools.chain.from_iterable(itertools.repeat(x, int(64/4)) for x in list(u_1[0])))
+          l2 = s[2]*int(TOTAL_RFs/N_dict[b[i][1]])
+          tmp = [l1[i]*l2[i] for i in range(128)]
+          qs.append(tmp)
+    VAR = var_1 + var_2
+    U = u_1 + u_2
+    qs = np.asarray(qs)
+    model.addConstrs((Q_fin[i,:] @ qs.T)[0] == p[i][0] for i in range(len(p))); model.update()
+    h_values = np.asarray(h_values)
+    Query = [qs[:] @ Ind_mat[:,i] for i in range(len(h_values))]
+    Objective =  (h_values @ Query)*(1/example.distribution()[1].get(xF_tup))
+    model.setObjective(Objective[0], GRB.MINIMIZE)
+    try:
+        model.optimize()
+    except gp.GurobiError:
+        print("Optimize failed due to non-convexity")
+    #model.setParam('OutputFlag', 0)
+    #model.update()
+    # Solve bilinear model
+    model.params.NonConvex = 2
+    model.optimize()
+
+    #model.printAttr('x')
+    print('Lower Bound: %g' % model.objVal)
 
