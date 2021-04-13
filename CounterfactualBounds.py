@@ -21,8 +21,8 @@ import random
 from prettytable import PrettyTable
 import gurobipy as gp
 from gurobipy import GRB
-
-np.random.seed(2021)
+SEED_VALUE = 2021
+np.random.seed(SEED_VALUE )
 
 class CounterfactualBounds:
   def __init__(self, data, edges, latent_edges):
@@ -83,7 +83,7 @@ class CounterfactualBounds:
     #texcode = dot2tex.dot2tex(b.to_string(), format='tikz', crop=True)
     # Draw 
   def classifier(self):
-    np.random.seed(2021)
+    np.random.seed(SEED_VALUE )
     return np.random.random(self.states)
     
   def draw(self):
@@ -287,7 +287,7 @@ class CounterfactualBounds:
     t = PrettyTable(['Intervened node','Factual observation (xF)','Lower Bound', 'Upper Bound', 'Decision'])
     #classifier = (example.states).flatten()
     joint_event = self.distribution()[2] # Remove this later
-    h = classifier(self.states).flatten()
+    h = self.classifier().flatten()
     h_dict = dict(zip(joint_event, h))
     xF = [i for i in joint_event if h_dict[i]<0.5]
     numRF_dict = self.RF_formulation()[1]
