@@ -1,10 +1,10 @@
 # Counterfactual Bounds for Algorithmic Recourse 
 
-### Objective
+### (TO-DO) Objective
 
 In causal settings, our approach aims to find the *informative* bounds for every action (in the form of atomic interventions) and suggests whether recourse will 'flip' the decision of an individual
 
-### HOW TO:
+### (TO-Do) HOW TO:
 
 Input : {Data, edges, latent_edges, type_of_actions}
 
