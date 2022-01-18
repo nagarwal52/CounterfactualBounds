@@ -16,3 +16,7 @@ In causal settings, our approach aims to find the *informative* bounds for every
 1. To extract the information from the input entities, run causalgraph.py
 2. To build the causal graph with response function variables, run responsefunctions.py
 3. 
+
+### Requirements
+
+Install GUROBI. Refer to this page for installation steps: 
